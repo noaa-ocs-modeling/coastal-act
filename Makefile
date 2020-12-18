@@ -16,6 +16,7 @@ default: install
 clean:
 	rm -rf ${BUILD_DIR}
 	rm -rf ${MAKEFILE_PARENT}src/adcirc-cg
+	rm -rf ${MAKEFILE_PARENT}.miniconda3
 
 install: coastal adcirc cudem
 
