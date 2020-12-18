@@ -106,9 +106,14 @@ conda:
 
 cudem:
 	@mkdir -p ${MAKEFILE_PARENT}static/cudem/.cache ;\
-	if [[ $$(find ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} -ctime +1 -print) ]] ;\
+	if [ ! -f ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} ];
 	then \
 		wget -O ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} ${CUDEM_TILE_INDEX_URL} ;\
+	else \
+		if [[ $$(find ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} -ctime +1 -print) ]] ;\
+		then \
+			wget -O ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} ${CUDEM_TILE_INDEX_URL} ;\
+		fi ;\
 	fi
 
 noaa-rdhpc-hera:
