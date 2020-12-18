@@ -17,6 +17,7 @@ uninstall:
 	rm -rf ${BUILD_DIR}
 	rm -rf ${MAKEFILE_PARENT}src/adcirc-cg
 	rm -rf ${MAKEFILE_PARENT}.miniconda3
+	rm -rf ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME}
 
 install: coastal adcirc cudem
 
@@ -106,7 +107,7 @@ conda:
 
 cudem:
 	@mkdir -p ${MAKEFILE_PARENT}static/cudem/.cache ;\
-	if [ ! -f ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} ];
+	if [ ! -f ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} ] ;\
 	then \
 		wget -O ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} ${CUDEM_TILE_INDEX_URL} ;\
 	else \
