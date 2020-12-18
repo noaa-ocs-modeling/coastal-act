@@ -58,6 +58,7 @@ run: update_cudem_tile_index $(if $("$(wildcard $(SLURM_JOB_FILE))",""), slurm)
 	eval 'tail -f ${SLURM_LOGFILE} &' ;\
 	tail_pid=$$! ;\
 	job_id=$$(sbatch  ${SLURM_JOB_FILE}) ;\
+	echo $$job_id
 	job_id=$$(echo $$job_id | awk '{print $$NF}') ;\
 	while [ $$(squeue -j $$job_id | wc -l) -eq 2 ] ;\
 	do \
