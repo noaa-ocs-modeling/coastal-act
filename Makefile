@@ -13,7 +13,7 @@ BUILD_DIR:=${MAKEFILE_PARENT}.coastal_env
 
 default: install
 
-clean:
+uninstall:
 	rm -rf ${BUILD_DIR}
 	rm -rf ${MAKEFILE_PARENT}src/adcirc-cg
 	rm -rf ${MAKEFILE_PARENT}.miniconda3
@@ -112,4 +112,7 @@ cudem:
 	fi
 
 noaa-rdhpc-hera:
-	make -e CONDA_INSTALL_PREFIX=/contrib/miniconda3/4.5.12
+	@make -e CONDA_INSTALL_PREFIX=/contrib/miniconda3/4.5.12  --no-print-directory
+
+noaa-rdhpc-orion:
+	@make --no-print-directory
