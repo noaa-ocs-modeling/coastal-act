@@ -5,7 +5,6 @@ ADCIRC_FORK=adcirc
 ADCIRC_BRANCH=master
 CUDEM_TILE_INDEX_FILENAME=tileindex_NCEI_ninth_Topobathy_2014.zip
 CUDEM_TILE_INDEX_URL:=https://coast.noaa.gov/htdata/raster2/elevation/NCEI_ninth_Topobathy_2014_8483/${CUDEM_TILE_INDEX_FILENAME}
-TARGET_HPC
 
 # private
 MAKEFILE_PATH:=$(abspath $(lastword $(MAKEFILE_LIST)))
@@ -77,6 +76,7 @@ adcirc: conda
 		module purge; \
 	fi
 
+
 coastal: conda
 	set -e ;\
 	. ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ;\
@@ -84,14 +84,18 @@ coastal: conda
 	cd ${MAKEFILE_PARENT}src/coastal ;\
 	python ./setup.py install
 
-
 conda:
 	set -e ;\
 	if [ ! -f ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ] ;\
 	then \
-		wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-			-O /tmp/Miniconda3-latest-Linux-x86_64.sh; \
-		bash /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p ${MAKEFILE_PARENT}.miniconda3 ;\
+		if [[ -n $$CONDA_INSTALL_PREFIX ]] ;\
+		then \
+			ln -sf $$CONDA_INSTALL_PREFIX ${MAKEFILE_PARENT}.miniconda3 ;\
+		else \
+			wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+				-O /tmp/Miniconda3-latest-Linux-x86_64.sh ;\
+			bash /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p ${MAKEFILE_PARENT}.miniconda3 ;\
+		fi; \
 		. ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ;\
 	fi ;\
 	if [ ! -d ${BUILD_DIR} ] ;\
@@ -105,3 +109,6 @@ cudem:
 	then \
 		wget -O ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME} ${CUDEM_TILE_INDEX_URL} ;\
 	fi
+
+noaa-rdhpc-hera:
+	make -e CONDA_INSTALL_PREFIX=/contrib/miniconda3/4.5.12
