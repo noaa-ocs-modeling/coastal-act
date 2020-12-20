@@ -108,7 +108,7 @@ noaa-rdhpc-orion-coastal-act:
 	make -e SLURM_ACCOUNT=coastal SLURM_PARTITION=orion SLURM_NTASKS=40 SLURM_TIME=00:10:00 --no-print-directory
 
 noaa-rdhpc-hera-coastal-act:
-	make -e  SLURM_ACCOUNT=coastal SLURM_PARTITION=hera SLURM_NTASKS=40 SLURM_TIME=00:10:00 --no-print-directory
+	make -e  SLURM_ACCOUNT=coastal SLURM_PARTITION=hera SLURM_NTASKS=40 SLURM_TIME=00:10:00 CHUNK_SIZE=3000 --no-print-directory
 
 clean:
 	@rm -rf slurm.job slurm.log
