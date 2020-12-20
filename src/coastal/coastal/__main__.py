@@ -47,6 +47,8 @@ def add_interp(subparsers):
         default="reuse",
         choices=['reuse', 'fv']
         )
+    interp.add_argument("--raster-cache")
+    interp.add_argument("--update-cache-and-exit", action="store_true")
 
 
 def parse_args():

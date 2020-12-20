@@ -18,12 +18,10 @@ from shapely.geometry import (  # type: ignore[import]  # noqa: E501
     Polygon,
     LineString,
     LinearRing,
-    # Point,
-    # MultiLineString
 )
 
-from pyschism.mesh.parsers import grd
-from pyschism import figures as fig
+from . import grd
+from . import figures as fig
 
 
 class Description:
@@ -38,80 +36,6 @@ class Description:
 
     def __get__(self, obj, val):
         return obj.__dict__['description']
-
-
-# class NodeBall:
-
-#     def __init__(self, gr3: "Gr3"):
-#         self.gr3 = gr3
-
-    # def __call__(self, ):
-
-    # def geometry(self, **kwargs):
-    #     if len(kwargs) == 0:
-    #         raise ValueError("geometry only accepts kwargs.")
-
-    #     if (id is None and index is None) \
-    #             or (id is not None and index is not None):
-    #         raise ValueError("Must pass an 'id' or 'index' argument.")
-
-    #     if id is not None:
-    #         index = self.gr3.nodes.get_index_by_id(id)
-
-    #     node_indexes = [*self.indexes_around_index(index), index]
-    #     node_ids = list(map(self.gr3.get_id_by_index, node_indexes))
-    #     print(node_ids)
-    #     exit()
-    #     polygons = []
-    #     for element_indexes in indexes:
-    #         print(self.gr3.nodes()[indexes])
-    #         exit()
-    #         polygons.append(Point(self.gr3.nodes()[indexes]))
-
-    #     return MultiPolygon()
-    #     # now do something with indexes
-
-    # def faces_around_index(self, index, order=0):
-    #     idxs = np.where(np.isin(self.gr3.elements.triangles(), index).any())
-    #     print(np.isin(self.gr3.elements.triangles(), index))
-    #     print(self.gr3.elements.triangles()[idxs])
-    #     # length = max(map(len, self.gr3.elements().values()))
-    #     # y = np.array([xi+[-99999]*(length-len(xi)) for xi in self.gr3.elements().values()])
-    #     # faces_around_index = defaultdict(set)
-    #     # for i, coord in enumerate(self.gr3.nodes().items()):
-    #     #     np.isin(i, axis=0)
-    #     #     faces_around_vertex[i].add()
-    #     # faces_around_vertex = defaultdict(set)
-    #     # pass
-
-    # def indexes_around_index(self, index):
-    #     indexes_around_index = self.__dict__.get('indexes_around_index')
-    #     if indexes_around_index is None:
-    #         def append(geom):
-    #             for simplex in geom:
-    #                 for i, j in permutations(simplex, 2):
-    #                     indexes_around_index[i].add(j)
-    #         indexes_around_index = defaultdict(set)
-    #         append(self.gr3.elements.triangles())
-    #         append(self.gr3.elements.quads())
-    #         self.__dict__['indexes_around_index'] = indexes_around_index
-    #     return list(indexes_around_index[index])
-
-    # def id(self, id, order=0):
-    #     raise NotImplementedError("ElementBall.id()")
-    #     return
-
-    # def ball(self, id=None, index=None, order=0, out_type=''):
-    #     """Get element ball.
-    #     """
-    #     if (id is None and index is None) \
-    #             or (id is not None and index is not None):
-    #         raise ValueError("Must pass an element id or index.")
-
-    #     if id is not None:
-    #         index = self.gr3.nodes.get_index_by_id(id)
-
-    #     self.triangulation().triangles
 
 
 class Nodes:
@@ -180,59 +104,6 @@ class Nodes:
             append(self.gr3.elements.quads())
             self.__dict__['indexes_around_index'] = indexes_around_index
         return list(indexes_around_index[index])
-
-
-# def _parallel_is_in(args):
-#     return np.in1d(*args)
-
-
-# class ElementBall:
-
-#     def __init__(self, gr3: "Gr3"):
-#         self.gr3 = gr3
-
-#     def __call__(self, **kwargs):
-
-#         if len(kwargs) == 0:
-#             raise ValueError("geometry only accepts kwargs.")
-
-#         id = kwargs.get('id')
-#         index = kwargs.get('index')
-
-#         if (id is None and index is None) \
-#                 or (id is not None and index is not None):
-#             raise ValueError("Must pass an 'id' or 'index' argument.")
-
-#         if id is not None:
-#             index = self.gr3.nodes.get_index_by_id(id)
-
-#         node_indexes = set()
-#         for node_index in self.gr3.elements.array()[index]:
-#             if np.ma.is_masked(node_index):
-#                 continue
-#             for idx in self.gr3.nodes.get_indexes_around_index(node_index):
-#                 node_indexes.add(idx)
-
-#         # from time import time
-#         # start = time()
-#         element_mask = np.isin(self.gr3.elements.array(), list(node_indexes))
-#         # print(f'{time()-start}')
-#         # print(element_mask)
-#         # from multiprocessing import Pool
-#         # start = time()
-#         # with Pool(processes=16) as p:
-#         #     res = p.map(_parallel_is_in, [(self.gr3.elements.array(), index) for index in node_indexes])
-#         # p.join()
-#         # print(f'{time()-start}')
-#         # print(res)
-#         # exit()
-#         element_indexes = np.where(np.any(element_mask, axis=0))
-#         elements = self.gr3.elements.array()[element_indexes]
-#         poly_coll = []
-#         for row in elements:
-#             polygon = Polygon(self.gr3.nodes.coord()[row[~row.mask]][0])
-#             poly_coll.append(polygon)
-#         return MultiPolygon(poly_coll)
 
 
 class Elements:
@@ -441,18 +312,6 @@ class Hull:
 
     def multipolygon(self) -> MultiPolygon:
         return self.implode().iloc[0].geometry
-
-    # def faces_around_vertex(self):
-    #     _elements = elements(mesh)
-    #     length = max(map(len, _elements.values()))
-    #     y = np.array([xi+[-99999]*(length-len(xi)) for xi in _elements.values()])
-    #     print(y)
-    #     faces_around_vertex = defaultdict(set)
-    #     for i, coord in enumerate(mesh.vert2['index']):
-    #         np.isin(i, axis=0)
-    #         faces_around_vertex[i].add()
-
-    #     faces_around_vertex = defaultdict(set)
 
 
 class Gr3(ABC):

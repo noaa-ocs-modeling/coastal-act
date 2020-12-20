@@ -1,69 +1,107 @@
 SHELL=/bin/bash
-
-#public
+PROJECT_PARENT:=$$(cd ../.. && echo $$(pwd))
+PROJECT_STATIC:=${PROJECT_PARENT}/static
 SLURM_JOB_FILE=slurm.job
 SLURM_LOGFILE=slurm.log
-INPUT_MESH=../../static/Mesh_120m/v22/Model_120m_Combinedv22_Storm.14
+INPUT_MESH:=${PROJECT_STATIC}/Mesh_120m/v22/Model_120m_Combinedv22_Storm.14
+INPUT_MESH_CRS="EPSG:4326"
+OUTPUT_MESH:=$$(basename ${INPUT_MESH}).output
 SLURM_NTASKS:=$$(nproc)
+CUDEM_TILE_INDEX_FILENAME:=$$(grep "CUDEM_TILE_INDEX_FILENAME=" ../../Makefile | cut -d= -f2-)
+CUDEM_TILE_INDEX_ABSOLUTE_PATH:=${PROJECT_STATIC}/cudem/${CUDEM_TILE_INDEX_FILENAME}
+RASTER_CACHE:=${PROJECT_STATIC}/cudem/.cache
 
-#private
-CUDEM_TILE_INDEX_FILENAME:=../../static/cudem/$$(grep "CUDEM_TILE_INDEX_FILENAME=" ../../Makefile | cut -d= -f2-)
-
-default: slurm
+default: cudem_sync slurm
 
 slurm:
-	@set -e ;\
-	rm -rf ${SLURM_JOB_FILE} ${SLURM_LOGFILE} ;\
-	echo "#!/bin/bash --login" > ${SLURM_JOB_FILE} ;\
-	echo "#SBATCH -D ." >> ${SLURM_JOB_FILE} ;\
-	if [ ! -z "$${SLURM_ACCOUNT}" ] ;\
+	@printf "#!/bin/bash --login\n" > ${SLURM_JOB_FILE};\
+	printf "#SBATCH -D .\n" >> ${SLURM_JOB_FILE};\
+	if [ ! -z "$${SLURM_ACCOUNT}" ];\
 	then \
-		echo "#SBATCH -A $${SLURM_ACCOUNT}" >> ${SLURM_JOB_FILE} ;\
-	fi ;\
-	if [ ! -z "$${SLURM_MAIL_USER}" ] ;\
+		printf "#SBATCH -A $${SLURM_ACCOUNT}\n" >> ${SLURM_JOB_FILE};\
+	fi;\
+	if [ ! -z "$${SLURM_MAIL_USER}" ];\
 	then \
-		echo "#SBATCH --mail-user=$${SLURM_MAIL_USER}" >> ${SLURM_JOB_FILE} ;\
-		echo "#SBATCH --mail-type=$${SLURM_MAIL_TYPE:-all}" >> ${SLURM_JOB_FILE} ;\
-	fi ;\
-	echo "#SBATCH --output=${SLURM_LOGFILE}" >> ${SLURM_JOB_FILE} ;\
-	echo "#SBATCH -n ${SLURM_NTASKS}" >> ${SLURM_JOB_FILE} ;\
-	if [ ! -z "$${SLURM_TIME}" ] ;\
+		printf "#SBATCH --mail-user=$${SLURM_MAIL_USER}\n" >> ${SLURM_JOB_FILE};\
+		printf "#SBATCH --mail-type=$${SLURM_MAIL_TYPE:-all}\n" >> ${SLURM_JOB_FILE};\
+	fi;\
+	printf "#SBATCH --output=${SLURM_LOGFILE}\n" >> ${SLURM_JOB_FILE};\
+	printf "#SBATCH -n ${SLURM_NTASKS}\n" >> ${SLURM_JOB_FILE};\
+	if [ ! -z "$${SLURM_TIME}" ];\
 	then \
-		echo "#SBATCH --time=$${SLURM_TIME}" >> ${SLURM_JOB_FILE} ;\
-	fi ;\
+		printf "#SBATCH --time=$${SLURM_TIME}\n" >> ${SLURM_JOB_FILE};\
+	fi;\
 	if [ ! -z "$${SLURM_PARTITION}" ] ;\
 	then \
-		echo "#SBATCH --partition=$${SLURM_PARTITION}" >> ${SLURM_JOB_FILE} ;\
+		printf "#SBATCH --partition=$${SLURM_PARTITION}\n" >> ${SLURM_JOB_FILE};\
+	fi;\
+	printf "\n" >> ${SLURM_JOB_FILE};\
+	printf "set -e\n" >> ${SLURM_JOB_FILE};\
+	printf "\n" >> ${SLURM_JOB_FILE};\
+	printf "# load the conda environment\n" >> ${SLURM_JOB_FILE};\
+	printf ". ../../.miniconda3/etc/profile.d/conda.sh\n" >> ${SLURM_JOB_FILE};\
+	printf "conda activate  ../../.coastal_env\n" >> ${SLURM_JOB_FILE};\
+	printf "\n" >> ${SLURM_JOB_FILE};\
+	printf "# launch\n" >> ${SLURM_JOB_FILE};\
+	printf "coastal interp \\" >> ${SLURM_JOB_FILE};\
+	printf "\n" >> ${SLURM_JOB_FILE};\
+	printf "  ${INPUT_MESH} \\" >> ${SLURM_JOB_FILE};\
+	printf "\n" >> ${SLURM_JOB_FILE};\
+	printf "  ${OUTPUT_MESH} \\" >> ${SLURM_JOB_FILE};\
+	printf "\n" >> ${SLURM_JOB_FILE};\
+	printf "  zip:///${CUDEM_TILE_INDEX_ABSOLUTE_PATH} \\" >> ${SLURM_JOB_FILE};\
+	printf "\n" >> ${SLURM_JOB_FILE};\
+	printf "  --crs=${INPUT_MESH_CRS} \\" >> ${SLURM_JOB_FILE};\
+	printf "\n" >> ${SLURM_JOB_FILE};\
+	printf "  --nproc=${SLURM_NTASKS}" >> ${SLURM_JOB_FILE};\
+	if [ ! -z "$${CHUNK_SIZE}" ];\
+	then \
+		printf " \\" >> ${SLURM_JOB_FILE};\
+		printf "\n" >> ${SLURM_JOB_FILE};\
+		printf "  --chunk-size=$${CHUNK_SIZE}" >> ${SLURM_JOB_FILE};\
 	fi ;\
-	echo "" >> ${SLURM_JOB_FILE} ;\
-	echo "set -e" >> ${SLURM_JOB_FILE} ;\
-	echo "" >> ${SLURM_JOB_FILE} ;\
-	echo "# load the conda environment" >> ${SLURM_JOB_FILE} ;\
-	echo ". ../../.miniconda3/etc/profile.d/conda.sh" >> ${SLURM_JOB_FILE} ;\
-	echo "conda activate  ../../.coastal_env" >> ${SLURM_JOB_FILE} ;\
-	echo "" >> ${SLURM_JOB_FILE} ;\
-	echo "# launch" >> ${SLURM_JOB_FILE} ;\
-	echo "coastal interp \\" >> ${SLURM_JOB_FILE} ;\
-	echo "  ${INPUT_MESH} \\" >> ${SLURM_JOB_FILE} ;\
-	echo "  "$$(basename ${INPUT_MESH}).output" \\" >> ${SLURM_JOB_FILE} ;\
-	echo "  ${CUDEM_TILE_INDEX_FILENAME}" >> ${SLURM_JOB_FILE}
+	if [ "$${VERBOSE}" = true ];\
+	then \
+		printf " \\" >> ${SLURM_JOB_FILE};\
+		printf "\n" >> ${SLURM_JOB_FILE};\
+		printf "  --verbose" >> ${SLURM_JOB_FILE};\
+	fi;\
+	if [ ! -z "${RASTER_CACHE}" ];\
+	then \
+		printf " \\" >> ${SLURM_JOB_FILE};\
+		printf "\n" >> ${SLURM_JOB_FILE};\
+		printf "  --raster-cache=${RASTER_CACHE}" >> ${SLURM_JOB_FILE};\
+	fi;\
+	if [[ $${OVERWRITE} = true ]];\
+	then \
+		printf " \\" >> ${SLURM_JOB_FILE};\
+		printf "\n" >> ${SLURM_JOB_FILE};\
+		printf "  --overwrite" >> ${SLURM_JOB_FILE};\
+	fi
 
 
-update_cudem_tile_index:
-	@make -f ../../Makefile cudem --no-print-directory
+cudem_sync:
+	@make -f ${PROJECT_PARENT}/Makefile cudem --no-print-directory;\
+	. ${PROJECT_PARENT}/.miniconda3/etc/profile.d/conda.sh;\
+	conda activate  ${PROJECT_PARENT}/.coastal_env;\
+	coastal interp ${INPUT_MESH} /dev/null zip:///${CUDEM_TILE_INDEX_ABSOLUTE_PATH}\
+		$$(if [ "$${VERBOSE}" = true ]; then echo "--verbose"; fi)\
+		--crs=${INPUT_MESH_CRS}\
+		--raster-cache=${RASTER_CACHE}\
+		--update-cache-and-exit
 
-run: update_cudem_tile_index $(if $("$(wildcard $(SLURM_JOB_FILE))",""), slurm)
-	@set -e ;\
-	touch ${SLURM_LOGFILE} ;\
-	eval 'tail -f ${SLURM_LOGFILE} &' ;\
-	tail_pid=$$! ;\
-	job_id=$$(sbatch  ${SLURM_JOB_FILE}) ;\
-	echo $$job_id ;\
-	job_id=$$(echo $$job_id | awk '{print $$NF}') ;\
-	while [ $$(squeue -j $$job_id | wc -l) -eq 2 ] ;\
+run: $(if $("$(wildcard $(SLURM_JOB_FILE))",""), slurm)
+	@set -e;\
+	touch ${SLURM_LOGFILE};\
+	eval 'tail -f ${SLURM_LOGFILE} &';\
+	tail_pid=$$!;\
+	job_id=$$(sbatch ${SLURM_JOB_FILE});\
+	printf "$${job_id}\n";\
+	job_id=$$(echo $$job_id | awk '{print $$NF}');\
+	while [ $$(squeue -j $$job_id | wc -l) -eq 2 ];\
 	do \
-		sleep 1 ;\
-	done ;\
+		sleep 1;\
+	done;\
 	kill "$$tail_pid"
 
 noaa-rdhpc-orion-coastal-act:
@@ -74,3 +112,6 @@ noaa-rdhpc-hera-coastal-act:
 
 clean:
 	@rm -rf slurm.job slurm.log
+
+purge: clean
+	@rm -rf ${OUTPUT_MESH}

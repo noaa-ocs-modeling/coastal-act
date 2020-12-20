@@ -2,16 +2,23 @@ from abc import ABC
 from collections import defaultdict
 from functools import lru_cache
 from itertools import permutations
+import numbers
 import os
 import pathlib
 from typing import Union, Sequence, Hashable, List, Dict, TextIO
 import warnings
 
+
 import geopandas as gpd  # type: ignore[import]
+from matplotlib.cm import ScalarMappable  # type: ignore[import]
 from matplotlib.collections import PolyCollection  # type: ignore[import]
+from matplotlib.colors import LinearSegmentedColormap, Normalize  # type: ignore[import]  # noqa: E501
 from matplotlib.path import Path  # type: ignore[import]
+import matplotlib.pyplot as plt  # type: ignore[import]
+from matplotlib import rcParams
 from matplotlib.tri import Triangulation  # type: ignore[import]
 from matplotlib.transforms import Bbox  # type: ignore[import]
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable  # type: ignore[import]  # noqa: E501
 import numpy as np  # type: ignore[import]
 from pyproj import Transformer, CRS  # type: ignore[import]
 from pyproj.exceptions import CRSError  # type: ignore[import]
@@ -21,8 +28,6 @@ from shapely.geometry import (  # type: ignore[import]  # noqa: E501
     LineString,
     LinearRing,
 )
-
-from .figures import _figure as figure
 
 
 def buffer_to_dict(buf: TextIO):
@@ -34,7 +39,7 @@ def buffer_to_dict(buf: TextIO):
         # Gr3/fort.14 format cannot distinguish between a 2D mesh with one
         # vector value (e.g. velocity, which uses 2 columns) or a 3D mesh with
         # one scalar value. This is a design problem of the mesh format, which
-        # renders it ambiguous, and the main reason why the use of fort.14/gr3
+        # renders it ambiguous, and the main reason why the use of fort.14/grd
         # formats is discouraged, in favor of UGRID.
         # Here, we assume the input mesh is strictly a 2D mesh, and the data
         # that follows is an array of values.
@@ -116,65 +121,66 @@ def to_string(description, nodes, elements, boundaries=None, crs=None):
             indexes
     """
     NE, NP = len(elements), len(nodes)
-    out = [
-        f"{description}",
-        f"{NE} {NP}"
-    ]
-    for i in range(NP):
-        vertices = ' '.join([f'{axis:<.16E}' for axis in grd['vertices'][i]])
-        if isinstance(grd['values'][i], Sequence):
-            values = ' '.join([f'{value:<.16E}' for value in grd['values'][i]])
-        else:
-            values = grd['values'][i]
-        out.append(f"{grd['vertex_id'][i]} {vertices} {values}")
-    for i in range(NE):
-        elements = ' '.join([f'{element}' for element in grd['elements'][i]])
-        out.append(f"{grd['element_id'][i]} {len(grd['elements'][i])} "
-                   f"{elements}")
-    if 'boundaries' not in grd:
-        return "\n".join(out)
-    ocean_boundaries = grd['boundaries'].get(None, {})
-    out.append(f"{len(grd['boundaries'][None]):d} ! total number of ocean "
-               "boundaries")
-    # count total number of ocean boundaries
-    if len(ocean_boundaries) > 0:
-        cnt = 0
-        for id, bnd in ocean_boundaries.items():
-            cnt += len(bnd.indexes)
-    out.append(f"{cnt:d} ! total number of ocean boundary nodes")
-    # write ocean boundary indexes
-    for i, boundary in ocean_boundaries.items():
-        out.append(
-                f"{len(boundary.indexes):d} ! number of nodes for "
-                f"ocean_boundary_{i}")
-        out.extend([idx for idx in boundary.indexes])
+    out = [f"{description}", f"{NE} {NP}"]
+    # TODO: Probably faster if using np.array2string
+    for id, (coords, values) in nodes.items():
+        if isinstance(values, numbers.Number):
+            values = [values]
+        line = [f"{id}"]
+        line.extend([f"{x:<.16E}" for x in coords])
+        line.extend([f"{x:<.16E}" for x in values])
+        out.append(" ".join(line))
+
+    for id, element in elements.items():
+        line = [f"{id}"]
+        line.append(f"{len(element)}")
+        line.extend([f"{e}" for e in element])
+        out.append(" ".join(line))
+
+    # ocean boundaries
+    if boundaries is not None:
+        out.append(f"{len(boundaries[None]):d} "
+                   "! total number of ocean boundaries")
+        # count total number of ocean boundaries
+        _sum = 0
+        for bnd in boundaries[None].values():
+            _sum += len(bnd['indexes'])
+        out.append(f"{int(_sum):d} ! total number of ocean boundary nodes")
+        # write ocean boundary indexes
+        for i, boundary in boundaries[None].items():
+            out.append(f"{len(boundary['indexes']):d}"
+                       f" ! number of nodes for ocean_boundary_{i}")
+            for idx in boundary['indexes']:
+                out.append(f"{idx}")
+    else:
+        out.append("0 ! total number of ocean boundaries")
+        out.append("0 ! total number of ocean boundary nodes")
     # remaining boundaries
-    cnt = 0
-    for key in grd['boundaries']:
+    _cnt = 0
+    for key in boundaries:
         if key is not None:
-            for bnd in grd['boundaries'][key]:
-                cnt += 1
-    out.append(f"{cnt:d}  ! total number of non-ocean boundaries")
+            for bnd in boundaries[key]:
+                _cnt += 1
+    out.append(f"{_cnt:d}  ! total number of non-ocean boundaries")
     # count remaining boundary nodes
-    cnt = 0
-    for ibtype in grd['boundaries']:
+    _cnt = 0
+    for ibtype in boundaries:
         if ibtype is not None:
-            for bnd in grd['boundaries'][ibtype].values():
-                cnt += np.asarray(bnd.indexes).size
-    out.append(f"{cnt:d} ! Total number of non-ocean boundary nodes")
+            for bnd in boundaries[ibtype].values():
+                _cnt += np.asarray(bnd['indexes']).size
+    out.append(f"{_cnt:d} ! Total number of non-ocean boundary nodes")
     # all additional boundaries
-    for ibtype, boundaries in grd['boundaries'].items():
+    for ibtype, boundaries in boundaries.items():
         if ibtype is None:
             continue
         for id, boundary in boundaries.items():
-            out.append(f"{len(boundary.indexes):d} {ibtype} ! boundary "
-                       f"{ibtype}:{id}")
-            # indexes = []
-            # for idx in boundary.indexes:
-            #     indexes.append(f"{idx}")
-            # indexes = ' '.join(indexes)
-            # out.append(f"{indexes}")
-            out.extend([idx for idx in boundary.indexes])
+            line = [
+                f"{len(boundary['indexes']):d}",
+                f"{ibtype}",
+                f"! boundary {ibtype}:{id}"]
+            out.append(' '.join(line))
+            for idx in boundary['indexes']:
+                out.append(f"{idx}")
     return "\n".join(out)
 
 
@@ -216,6 +222,29 @@ def write(grd, path, overwrite=False):
         f.write(to_string(**grd))
 
 
+def get_axes(axes, figsize=None, subplot=111):
+    figsize = rcParams["figure.figsize"] if figsize is None else figsize
+    if axes is None:
+        fig = plt.figure(figsize=figsize)
+        axes = fig.add_subplot(subplot)
+    return axes
+
+
+def figure(f):
+    def decorator(*argv, **kwargs):
+        axes = get_axes(
+            kwargs.get('axes', None),
+            kwargs.get('figsize', None)
+            )
+        kwargs.update({'axes': axes})
+        axes = f(*argv, **kwargs)
+        if kwargs.get('show', False):
+            axes.axis('scaled')
+            plt.show()
+        return axes
+    return decorator
+
+
 class Description:
 
     def __set__(self, obj, description):
@@ -232,7 +261,7 @@ class Description:
 
 class Nodes:
 
-    def __set__(self, obj: "Gr3", nodes: Dict[Hashable, List[List]]):
+    def __set__(self, obj: "Grd", nodes: Dict[Hashable, List[List]]):
         """Setter for the nodes attribute.
 
         Argument nodes must be of the form:
@@ -247,11 +276,11 @@ class Nodes:
         for coords, _ in nodes.values():
             if len(coords) != 2:
                 raise ValueError(
-                    'Coordinate vertices for a gr3 type must be 2D, but got '
+                    'Coordinate vertices for a grd type must be 2D, but got '
                     f'coordinates {coords}.')
         obj.__dict__['nodes'] = nodes
-        self.gr3 = obj
-        # self.ball = NodeBall(self.gr3)
+        self.grd = obj
+        # self.ball = NodeBall(self.grd)
 
         obj.__dict__['id_to_index'] = {
             self.id()[i]: i for i in range(len(self.id()))}
@@ -260,7 +289,7 @@ class Nodes:
             i: self.id()[i] for i in range(len(self.id()))}
 
     def __call__(self):
-        return self.gr3.__dict__['nodes']
+        return self.grd.__dict__['nodes']
 
     @lru_cache(maxsize=1)
     def id(self):
@@ -279,10 +308,10 @@ class Nodes:
         return np.array([val for _, val in self().values()])
 
     def get_index_by_id(self, id: Hashable):
-        return self.gr3.__dict__['id_to_index'][id]
+        return self.grd.__dict__['id_to_index'][id]
 
     def get_id_by_index(self, index: int):
-        return self.gr3.__dict__['index_to_id'][index]
+        return self.grd.__dict__['index_to_id'][index]
 
     def get_indexes_around_index(self, index):
         indexes_around_index = self.__dict__.get('indexes_around_index')
@@ -292,15 +321,15 @@ class Nodes:
                     for i, j in permutations(simplex, 2):
                         indexes_around_index[i].add(j)
             indexes_around_index = defaultdict(set)
-            append(self.gr3.elements.triangles())
-            append(self.gr3.elements.quads())
+            append(self.grd.elements.triangles())
+            append(self.grd.elements.quads())
             self.__dict__['indexes_around_index'] = indexes_around_index
         return list(indexes_around_index[index])
 
 
 class Elements:
 
-    def __set__(self, obj: "Gr3", elements: Dict[Hashable, Sequence]):
+    def __set__(self, obj: "Grd", elements: Dict[Hashable, Sequence]):
         if not isinstance(elements, dict):
             raise TypeError('Argument elements must be a dict.')
         vertex_id_set = set(obj.nodes.id())
@@ -313,10 +342,10 @@ class Elements:
                 ValueError(f'Element with index {i} is not a subset of the '
                            "coordinate id's.")
         obj.__dict__['elements'] = elements
-        self.gr3 = obj
+        self.grd = obj
 
     def __call__(self):
-        return self.gr3.__dict__["elements"]
+        return self.grd.__dict__["elements"]
 
     @lru_cache(maxsize=1)
     def id(self):
@@ -331,21 +360,21 @@ class Elements:
         rank = int(max(map(len, self().values())))
         array = np.full((len(self()), rank), -1)
         for i, element in enumerate(self().values()):
-            row = np.array(list(map(self.gr3.nodes.get_index_by_id, element)))
+            row = np.array(list(map(self.grd.nodes.get_index_by_id, element)))
             array[i, :len(row)] = row
         return np.ma.masked_equal(array, -1)
 
     @lru_cache(maxsize=1)
     def triangles(self):
         return np.array(
-            [list(map(self.gr3.nodes.get_index_by_id, element))
+            [list(map(self.grd.nodes.get_index_by_id, element))
              for element in self().values()
              if len(element) == 3])
 
     @lru_cache(maxsize=1)
     def quads(self):
         return np.array(
-            [list(map(self.gr3.nodes.get_index_by_id, element))
+            [list(map(self.grd.nodes.get_index_by_id, element))
              for element in self().values()
              if len(element) == 4])
 
@@ -356,8 +385,8 @@ class Elements:
             triangles.append([quad[0], quad[1], quad[3]])
             triangles.append([quad[1], quad[2], quad[3]])
         return Triangulation(
-            self.gr3.nodes.coord()[:, 0],
-            self.gr3.nodes.coord()[:, 1],
+            self.grd.nodes.coord()[:, 0],
+            self.grd.nodes.coord()[:, 1],
             triangles)
 
     def geodataframe(self):
@@ -365,10 +394,10 @@ class Elements:
         for id, element in self().items():
             data.append({
                 'geometry': Polygon(
-                    self.gr3.nodes.coord()[list(
-                        map(self.gr3.nodes.get_index_by_id, element))]),
+                    self.grd.nodes.coord()[list(
+                        map(self.grd.nodes.get_index_by_id, element))]),
                 'id': id})
-        return gpd.GeoDataFrame(data, crs=self.gr3.crs)
+        return gpd.GeoDataFrame(data, crs=self.grd.crs)
 
 
 class Crs:
@@ -383,20 +412,20 @@ class Crs:
 
 class Edges:
 
-    def __init__(self, gr3: "Gr3"):
-        self.gr3 = gr3
+    def __init__(self, grd: "Grd"):
+        self.grd = grd
 
     @lru_cache(maxsize=1)
     def __call__(self) -> gpd.GeoDataFrame:
         data = []
-        for ring in self.gr3.hull.rings().itertuples():
+        for ring in self.grd.hull.rings().itertuples():
             coords = ring.geometry.coords
             for i in range(1, len(coords)):
                 data.append({
                     "geometry": LineString([coords[i-1], coords[i]]),
                     "bnd_id": ring.bnd_id,
                     "type": ring.type})
-        return gpd.GeoDataFrame(data, crs=self.gr3.crs)
+        return gpd.GeoDataFrame(data, crs=self.grd.crs)
 
     @lru_cache(maxsize=1)
     def exterior(self):
@@ -409,41 +438,37 @@ class Edges:
 
 class Rings:
 
-    def __init__(self, gr3: "Gr3"):
-        self.gr3 = gr3
+    def __init__(self, grd: "Grd"):
+        self.grd = grd
 
     @lru_cache(maxsize=1)
     def __call__(self) -> gpd.GeoDataFrame:
-        tri = self.gr3.elements.triangulation()
+        tri = self.grd.elements.triangulation()
         idxs = np.vstack(list(np.where(tri.neighbors == -1))).T
         boundary_edges = []
         for i, j in idxs:
             boundary_edges.append(
                 (tri.triangles[i, j], tri.triangles[i, (j+1) % 3]))
         sorted_rings = sort_rings(edges_to_rings(boundary_edges),
-                                  self.gr3.nodes.coord())
+                                  self.grd.nodes.coord())
         data = []
         for bnd_id, rings in sorted_rings.items():
-            coords = self.gr3.nodes.coord()[rings['exterior'][:, 0], :]
+            coords = self.grd.nodes.coord()[rings['exterior'][:, 0], :]
             geometry = LinearRing(coords)
-            # if not geometry.is_ccw:
-            #     geometry = LinearRing(np.flipud(coords))
             data.append({
                     "geometry": geometry,
                     "bnd_id": bnd_id,
                     "type": 'exterior'
                 })
             for interior in rings['interiors']:
-                coords = self.gr3.nodes.coord()[interior[:, 0], :]
+                coords = self.grd.nodes.coord()[interior[:, 0], :]
                 geometry = LinearRing(coords)
-                # if not geometry.is_ccw:
-                #     geometry = LinearRing(np.flipud(coords))
                 data.append({
                     "geometry": geometry,
                     "bnd_id": bnd_id,
                     "type": 'interior'
                 })
-        return gpd.GeoDataFrame(data, crs=self.gr3.crs)
+        return gpd.GeoDataFrame(data, crs=self.grd.crs)
 
     def exterior(self):
         return self().loc[self()['type'] == 'exterior']
@@ -454,10 +479,10 @@ class Rings:
 
 class Hull:
 
-    def __init__(self, gr3: "Gr3"):
-        self.gr3 = gr3
-        self.edges = Edges(gr3)
-        self.rings = Rings(gr3)
+    def __init__(self, grd: "Grd"):
+        self.grd = grd
+        self.edges = Edges(grd)
+        self.rings = Rings(grd)
 
     @lru_cache(maxsize=1)
     def __call__(self) -> gpd.GeoDataFrame:
@@ -476,7 +501,7 @@ class Hull:
                             in interiors.iterrows()]),
                     "bnd_id": bnd_id
                 })
-        return gpd.GeoDataFrame(data, crs=self.gr3.crs)
+        return gpd.GeoDataFrame(data, crs=self.grd.crs)
 
     @lru_cache(maxsize=1)
     def exterior(self):
@@ -484,7 +509,7 @@ class Hull:
         for exterior in self.rings().loc[
                 self.rings()['type'] == 'exterior'].itertuples():
             data.append({"geometry": Polygon(exterior.geometry.coords)})
-        return gpd.GeoDataFrame(data, crs=self.gr3.crs)
+        return gpd.GeoDataFrame(data, crs=self.grd.crs)
 
     @lru_cache(maxsize=1)
     def interior(self):
@@ -492,14 +517,14 @@ class Hull:
         for interior in self.rings().loc[
                 self.rings()['type'] == 'interior'].itertuples():
             data.append({"geometry": Polygon(interior.geometry.coords)})
-        return gpd.GeoDataFrame(data, crs=self.gr3.crs)
+        return gpd.GeoDataFrame(data, crs=self.grd.crs)
 
     @lru_cache(maxsize=1)
     def implode(self) -> gpd.GeoDataFrame:
         return gpd.GeoDataFrame(
             {"geometry": MultiPolygon([polygon.geometry for polygon
                                        in self().itertuples()])},
-            crs=self.gr3.crs)
+            crs=self.grd.crs)
 
     def multipolygon(self) -> MultiPolygon:
         return self.implode().iloc[0].geometry
@@ -520,13 +545,13 @@ class Grd(ABC):
         self._hull = Hull(self)
 
     def __str__(self):
-        return to_string(self.to_dict())
+        return to_string(**self.to_dict())
 
     def to_dict(self):
         return {
             "description": self.description,
-            "nodes": self.nodes,
-            "elements": self.elements,
+            "nodes": self.nodes(),
+            "elements": self.elements(),
             "crs": self.crs}
 
     def write(self, path, overwrite=False):
@@ -578,13 +603,13 @@ class Grd(ABC):
 
     @figure
     def tricontourf(self, axes=None, show=True, figsize=None, **kwargs):
-        if len(self.tria3) > 0:
+        if len(self.triangles) > 0:
             axes.tricontourf(self.triangulation, self.values, **kwargs)
         return axes
 
     @figure
     def tripcolor(self, axes=None, show=True, figsize=None, **kwargs):
-        if len(self.tria3) > 0:
+        if len(self.triangles) > 0:
             axes.tripcolor(self.triangulation, self.values, **kwargs)
         return axes
 
@@ -633,12 +658,12 @@ class Grd(ABC):
         figsize=None,
         **kwargs
     ):
-        if len(self.quad4) > 0:
+        if len(self.quads) > 0:
             pc = PolyCollection(
-                self.coords[self.quad4],
+                self.coords[self.quads],
                 **kwargs
             )
-            quad_value = np.mean(self.values[self.quad4], axis=1)
+            quad_value = np.mean(self.values[self.quads], axis=1)
             pc.set_array(quad_value)
             axes.add_collection(pc)
         return axes
@@ -832,3 +857,226 @@ def signed_polygon_area(vertices):
         area += vertices[i][0] * vertices[j][1]
         area -= vertices[j][0] * vertices[i][1]
         return area / 2.0
+
+
+class BoundariesDescriptor:
+
+    def __set__(self, obj, boundaries: Union[dict, None]):
+        ocean_boundaries = []
+        land_boundaries = []
+        interior_boundaries = []
+        if boundaries is not None:
+            for ibtype, bnds in boundaries.items():
+                if ibtype is None:
+                    for id, data in bnds.items():
+                        indexes = list(map(obj.nodes.get_index_by_id,
+                                       data['indexes']))
+                        ocean_boundaries.append({
+                            'id': id,
+                            "index_id": data['indexes'],
+                            "indexes": indexes,
+                            'geometry': LineString(obj.vertices[indexes])
+                            })
+
+                elif str(ibtype).endswith('1'):
+                    for id, data in bnds.items():
+                        indexes = list(map(obj.nodes.get_index_by_id,
+                                       data['indexes']))
+                        interior_boundaries.append({
+                            'id': id,
+                            'ibtype': ibtype,
+                            "index_id": data['indexes'],
+                            "indexes": indexes,
+                            'geometry': LineString(obj.vertices[indexes])
+                            })
+                else:
+                    for id, data in bnds.items():
+                        _indexes = np.array(data['indexes'])
+                        if _indexes.ndim > 1:
+                            # ndim > 1 implies we're dealing with an ADCIRC
+                            # mesh that includes boundary pairs, such as weir
+                            new_indexes = []
+                            for i, line in enumerate(_indexes.T):
+                                if i % 2 != 0:
+                                    new_indexes.extend(np.flip(line))
+                                else:
+                                    new_indexes.extend(line)
+                            _indexes = np.array(new_indexes).flatten()
+                        else:
+                            _indexes = _indexes.flatten()
+                        indexes = list(map(obj.nodes.get_index_by_id,
+                                       _indexes))
+
+                        land_boundaries.append({
+                            'id': id,
+                            'ibtype': ibtype,
+                            "index_id": data['indexes'],
+                            "indexes": indexes,
+                            'geometry': LineString(obj.vertices[indexes])
+                            })
+
+        self.ocean = gpd.GeoDataFrame(ocean_boundaries)
+        self.land = gpd.GeoDataFrame(land_boundaries)
+        self.interior = gpd.GeoDataFrame(interior_boundaries)
+        self.boundaries = boundaries
+
+    def __call__(self):
+        return self.boundaries
+
+
+class FixPointNormalize(Normalize):
+    """
+    This class is used for plotting. The reason it is declared here is that
+    it is used by more than one submodule. In the future, this class will be
+    native part of matplotlib. This definiton will be removed once the native
+    matplotlib definition becomes available.
+    Inspired by https://stackoverflow.com/questions/20144529/shifted-colorbar-matplotlib
+    Subclassing Normalize to obtain a colormap with a fixpoint
+    somewhere in the middle of the colormap.
+    This may be useful for a `terrain` map, to set the "sea level"
+    to a color in the blue/turquise range.
+    """
+    def __init__(self, vmin=None, vmax=None, sealevel=0, col_val=0.5,
+                 clip=False):
+        # sealevel is the fix point of the colormap (in data units)
+        self.sealevel = sealevel
+        # col_val is the color value in the range [0,1] that should represent
+        # the sealevel.
+        self.col_val = col_val
+        Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        x, y = [self.vmin, self.sealevel, self.vmax], [0, self.col_val, 1]
+        if np.ma.is_masked(value) is False:
+            value = np.ma.masked_invalid(value)
+        return np.ma.masked_where(value.mask, np.interp(value, x, y))
+
+
+def get_topobathy_kwargs(values, vmin, vmax, colors=256):
+    vmin = np.min(values) if vmin is None else vmin
+    vmax = np.max(values) if vmax is None else vmax
+    if vmax <= 0.:
+        cmap = plt.cm.seismic
+        col_val = 0.
+        levels = np.linspace(vmin, vmax, colors)
+    else:
+        wet_count = int(np.floor(
+            colors*(float((values < 0.).sum()) / float(values.size))))
+        col_val = float(wet_count)/colors
+        dry_count = colors - wet_count
+        colors_undersea = plt.cm.bwr(np.linspace(1., 0., wet_count))
+        colors_land = plt.cm.terrain(np.linspace(0.25, 1., dry_count))
+        colors = np.vstack((colors_undersea, colors_land))
+        cmap = LinearSegmentedColormap.from_list('cut_terrain', colors)
+        wlevels = np.linspace(vmin, 0.0, wet_count, endpoint=False)
+        dlevels = np.linspace(0.0, vmax, dry_count)
+        levels = np.hstack((wlevels, dlevels))
+    if vmax > 0:
+        norm = FixPointNormalize(
+            sealevel=0.0,
+            vmax=vmax,
+            vmin=vmin,
+            col_val=col_val
+            )
+    else:
+        norm = None
+    return {'cmap': cmap,
+            'norm': norm,
+            'levels': levels,
+            'col_val': col_val,
+            # 'extend': 'both'
+            }
+
+
+class Fort14(Grd):
+    """
+    Class that represents the unstructured planar mesh used by SCHISM.
+    """
+    _boundaries = BoundariesDescriptor()
+
+    def __init__(self, *args, boundaries=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._boundaries = boundaries
+
+    @staticmethod
+    def open(path, crs=None):
+        _grd = read(path, crs=crs)
+        _grd['nodes'] = {id: (coords, -val) for id, (coords, val)
+                         in _grd['nodes'].items()}
+        return Fort14(**_grd)
+
+    def to_dict(self):
+        return {
+            "description": self.description,
+            "nodes": self.nodes(),
+            "elements": self.elements(),
+            "crs": self.crs,
+            "boundaries": self.boundaries()}
+
+    @figure
+    def make_plot(
+        self,
+        axes=None,
+        vmin=None,
+        vmax=None,
+        show=False,
+        title=None,
+        figsize=rcParams["figure.figsize"],
+        extent=None,
+        cbar_label=None,
+        **kwargs
+    ):
+        if vmin is None:
+            vmin = np.min(self.values)
+        if vmax is None:
+            vmax = np.max(self.values)
+        kwargs.update(**get_topobathy_kwargs(self.values, vmin, vmax))
+        kwargs.pop('col_val')
+        levels = kwargs.pop('levels')
+        if vmin != vmax:
+            self.tricontourf(
+                axes=axes,
+                levels=levels,
+                vmin=vmin,
+                vmax=vmax,
+                **kwargs
+            )
+        else:
+            self.tripcolor(axes=axes, **kwargs)
+        self.quadface(axes=axes, **kwargs)
+        axes.axis('scaled')
+        if extent is not None:
+            axes.axis(extent)
+        if title is not None:
+            axes.set_title(title)
+        mappable = ScalarMappable(cmap=kwargs['cmap'])
+        mappable.set_array([])
+        mappable.set_clim(vmin, vmax)
+        divider = make_axes_locatable(axes)
+        cax = divider.append_axes("bottom", size="2%", pad=0.5)
+        cbar = plt.colorbar(
+            mappable,
+            cax=cax,
+            orientation='horizontal'
+        )
+        cbar.set_ticks([vmin, vmax])
+        cbar.set_ticklabels([np.around(vmin, 2), np.around(vmax, 2)])
+        if cbar_label is not None:
+            cbar.set_label(cbar_label)
+        return axes
+
+    @property
+    def boundaries(self):
+        return self._boundaries
+
+    @property
+    def ocean_boundaries(self):
+        return self.boundaries.ocean
+
+    @property
+    def land_boundaries(self):
+        return self.boundaries.land
+
+    @property
+    def interior_boundaries(self):
+        return self.boundaries.interior

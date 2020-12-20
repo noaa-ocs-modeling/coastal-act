@@ -6,12 +6,15 @@ ADCIRC_BRANCH=master
 CUDEM_TILE_INDEX_FILENAME=tileindex_NCEI_ninth_Topobathy_2014.zip
 CUDEM_TILE_INDEX_URL:=https://coast.noaa.gov/htdata/raster2/elevation/NCEI_ninth_Topobathy_2014_8483/${CUDEM_TILE_INDEX_FILENAME}
 
+
 # private
 MAKEFILE_PATH:=$(abspath $(lastword $(MAKEFILE_LIST)))
 MAKEFILE_PARENT:=$(dir $(MAKEFILE_PATH))
 BUILD_DIR:=${MAKEFILE_PARENT}.coastal_env
 
+
 default: install
+
 
 uninstall:
 	rm -rf ${BUILD_DIR}
@@ -19,7 +22,9 @@ uninstall:
 	rm -rf ${MAKEFILE_PARENT}.miniconda3
 	rm -rf ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME}
 
+
 install: coastal adcirc cudem
+
 
 adcirc: conda
 	set -e ;\
@@ -86,6 +91,7 @@ coastal: conda
 	cd ${MAKEFILE_PARENT}src/coastal ;\
 	python ./setup.py install
 
+
 conda:
 	set -e ;\
 	if [ ! -f ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ] ;\
@@ -117,8 +123,17 @@ cudem:
 		fi ;\
 	fi
 
+
+develop: coastal
+	@. ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ;\
+	conda activate ${MAKEFILE_PARENT}.coastal_env ;\
+	cd ${MAKEFILE_PARENT}src/coastal ;\
+	python ./setup.py develop
+
+
 noaa-rdhpc-hera:
 	@make -e CONDA_INSTALL_PREFIX=/contrib/miniconda3/4.5.12  --no-print-directory
+
 
 noaa-rdhpc-orion:
 	@make --no-print-directory
