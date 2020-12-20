@@ -23,7 +23,7 @@ uninstall:
 	rm -rf ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME}
 
 
-install: coastal adcirc cudem
+install: coastal adcirc cudem mesh_120m_v22
 
 
 adcirc: conda
@@ -123,6 +123,14 @@ cudem:
 		fi ;\
 	fi
 
+mesh_120m_v22:
+	@if [ ! -f ${MAKEFILE_PARENT}static/Mesh_120m/v22/Model_120m_Combinedv22_Storm.14 ];\
+	then \
+		cd ${MAKEFILE_PARENT}static;\
+		wget https://www.dropbox.com/s/fvtubp13aqt9gjq/Mesh_120m_v22.tar.gz;\
+		tar xvf Mesh_120m_v22.tar.gz;\
+		rm -rf Mesh_120m_v22.tar.gz;\
+	fi
 
 develop: coastal
 	@. ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ;\
