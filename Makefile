@@ -16,11 +16,17 @@ BUILD_DIR:=${MAKEFILE_PARENT}.coastal_env
 default: install
 
 
-uninstall:
+clean:
 	rm -rf ${BUILD_DIR}
 	rm -rf ${MAKEFILE_PARENT}src/adcirc-cg
 	rm -rf ${MAKEFILE_PARENT}.miniconda3
 	rm -rf ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME}
+	rm -rf ${MAKEFILE_PARENT}static/Mesh_120m/v22/fort.15
+	rm -rf ${MAKEFILE_PARENT}static/Mesh_120m/v22/fort.26
+	rm -rf ${MAKEFILE_PARENT}static/Mesh_120m/v22/Model_120m_Combinedv22_Storm.13
+	rm -rf ${MAKEFILE_PARENT}static/Mesh_120m/v22/Model_120m_Combinedv22_Storm.14
+	rm -rf ${MAKEFILE_PARENT}static/Mesh_120m/v22/swaninit
+	rm -rf ${MAKEFILE_PARENT}static/Mesh_120m/v22/fort.15
 
 
 install: coastal adcirc cudem mesh_120m_v22
@@ -93,7 +99,7 @@ coastal: conda
 
 
 conda:
-	set -e ;\
+	@set -e ;\
 	if [ ! -f ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ] ;\
 	then \
 		if [[ -n $$CONDA_INSTALL_PREFIX ]] ;\
@@ -101,8 +107,9 @@ conda:
 			ln -sf $$CONDA_INSTALL_PREFIX ${MAKEFILE_PARENT}.miniconda3 ;\
 		else \
 			wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-				-O /tmp/Miniconda3-latest-Linux-x86_64.sh ;\
-			bash /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p ${MAKEFILE_PARENT}.miniconda3 ;\
+				-O /tmp/Miniconda3-latest-Linux-x86_64.sh;\
+			bash /tmp/Miniconda3-latest-Linux-x86_64.sh -u -b -p ${MAKEFILE_PARENT}.miniconda3;\
+			rm -rf /tmp/Miniconda3-latest-Linux-x86_64.sh;\
 		fi; \
 		. ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ;\
 	fi ;\

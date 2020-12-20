@@ -1,4 +1,3 @@
-SHELL=/bin/bash
 PROJECT_PARENT:=$$(cd ../.. && echo $$(pwd))
 PROJECT_STATIC:=${PROJECT_PARENT}/static
 SLURM_JOB_FILE=slurm.job
@@ -10,6 +9,7 @@ SLURM_NTASKS:=$$(nproc)
 CUDEM_TILE_INDEX_FILENAME:=$$(grep "CUDEM_TILE_INDEX_FILENAME=" ../../Makefile | cut -d= -f2-)
 CUDEM_TILE_INDEX_ABSOLUTE_PATH:=${PROJECT_STATIC}/cudem/${CUDEM_TILE_INDEX_FILENAME}
 RASTER_CACHE:=${PROJECT_STATIC}/cudem/.cache
+VERBOSE=true
 
 default: cudem_sync slurm
 
@@ -60,7 +60,7 @@ slurm:
 		printf "\n" >> ${SLURM_JOB_FILE};\
 		printf "  --chunk-size=$${CHUNK_SIZE}" >> ${SLURM_JOB_FILE};\
 	fi ;\
-	if [ "$${VERBOSE}" = true ];\
+	if [ "${VERBOSE}" = true ];\
 	then \
 		printf " \\" >> ${SLURM_JOB_FILE};\
 		printf "\n" >> ${SLURM_JOB_FILE};\
@@ -85,7 +85,7 @@ cudem_sync:
 	. ${PROJECT_PARENT}/.miniconda3/etc/profile.d/conda.sh;\
 	conda activate  ${PROJECT_PARENT}/.coastal_env;\
 	coastal interp ${INPUT_MESH} /dev/null zip:///${CUDEM_TILE_INDEX_ABSOLUTE_PATH}\
-		$$(if [ "$${VERBOSE}" = true ]; then echo "--verbose"; fi)\
+		$$(if [ "${VERBOSE}" = true ]; then echo "--verbose"; fi)\
 		--crs=${INPUT_MESH_CRS}\
 		--raster-cache=${RASTER_CACHE}\
 		--update-cache-and-exit

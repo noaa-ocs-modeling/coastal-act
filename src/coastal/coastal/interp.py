@@ -52,7 +52,6 @@ class RasterCollection:
         except DriverError:
             raise IOError(f'File {item} is not readable by rasterio nor '
                           'geopandas.')
-
         bbox = obj.mesh.get_bbox(crs=df.crs)
         bbox = box(bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax)
         if obj.args.raster_cache is not None:
@@ -90,6 +89,8 @@ class InputMesh:
     def __get__(self, obj, val):
         mesh = obj.__dict__.get('mesh')
         if mesh is None:
+            if obj.args.verbose:
+                print(f'Reading mesh file {obj.args.input_mesh_path}')
             mesh = Fort14.open(obj.args.input_mesh_path, crs=obj.args.crs)
             obj.__dict__['mesh'] = mesh
         return mesh
