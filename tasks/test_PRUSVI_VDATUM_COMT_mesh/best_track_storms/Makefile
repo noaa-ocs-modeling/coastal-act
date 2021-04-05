@@ -74,7 +74,7 @@ noaa-rdhpc-orion-coastal-act:
 sbatch:
 	@set -eu;\
 	declare -a StormArray=("Ike2008" "Isabel2003" "Irma2017" "Sandy2012"  "Irene2011" \
-		"Michael2018" "Florence2018" "Harvey2017" "Maria2017" "Lane2018");\
+		"Michael2018" "Florence2018" "Harvey2017" "Maria2017");\
 	for STORM_NAME in "$${StormArray[@]}";\
 	do \
 		cd outputs/$${STORM_NAME};\
