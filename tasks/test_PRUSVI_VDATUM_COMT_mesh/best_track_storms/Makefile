@@ -69,7 +69,7 @@ best_track_run:
 	
 
 noaa-rdhpc-orion-coastal-act:
-	make -e SLURM_ACCOUNT=nosofs SLURM_NTASKS=800 PARTITION=orion WALLTIME=8 --no-print-directory
+	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=800 PARTITION=orion WALLTIME=8 --no-print-directory
 
 sbatch:
 	@set -eu;\
