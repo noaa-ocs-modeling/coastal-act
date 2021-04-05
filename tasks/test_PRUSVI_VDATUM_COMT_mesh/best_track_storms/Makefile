@@ -9,7 +9,7 @@ INPUT_NODAL_ATTRIBUTES:="${PROJECT_STATIC}/Puerto\ Rico\ VDatum/fort.13"
 SLURM_NTASKS:=$$(nproc)
 VERBOSE=true
 SPINUP_DAYS=15
-TIMESTEP=1.0
+TIMESTEP=2.0
 OVERWRITE=false
 
 default: mesh all_best_track_runs
@@ -20,7 +20,7 @@ mesh:
 all_best_track_runs:
 	@set -eu;\
 	declare -a StormArray=("Ike2008" "Isabel2003" "Irma2017" "Sandy2012"  "Irene2011" \
-		"Michael2018" "Florence2018" "Harvey2017" "Maria2017" "Lane2018");\
+		"Michael2018" "Florence2018" "Harvey2017" "Maria2017");\
 	for STORM_NAME in "$${StormArray[@]}";\
 	do \
 		make -e STORM_NAME=$${STORM_NAME} best_track_run --no-print-directory;\
