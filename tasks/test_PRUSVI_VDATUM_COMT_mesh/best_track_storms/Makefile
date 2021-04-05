@@ -37,14 +37,14 @@ best_track_run:
 	opts+=("--output-directory=$$(pwd)/outputs/$${STORM_NAME}");\
 	opts+=("--constituents=major");\
 	opts+=("--skip-run");\
-	opts+=("--log-level-info");\
+	opts+=("--log-level=info");\
 	opts+=("--timestep=${TIMESTEP}"); \
 	opts+=("--elev=60."); \
 	opts+=("--stations-file=../../../static/coops.txt"); \
 	opts+=("--elev-stat=6."); \
 	opts+=("--binaries-prefix=${PROJECT_PARENT}/.coastal_env/bin");\
 	opts+=("--run-name=$${STORM_NAME}_best_track_COASTAL_ACT_PRVDatum_mesh");\
-	opts+=("--gwce-solution-scheme=semi-implicit-legacy"); \
+	opts+=("--gwce-solution-scheme=semi-implicit"); \
 	if [[ ${OVERWRITE} = true ]];\
 	then \
 		opts+=("--overwrite");\
