@@ -8,7 +8,7 @@ INPUT_NODAL_ATTRIBUTES:=${PROJECT_STATIC}/Mesh_120m/v22/Model_120m_Combinedv22_S
 
 SLURM_NTASKS:=$$(nproc)
 VERBOSE=true
-SPINUP_DAYS=15
+SPINUP_DAYS=5
 OVERWRITE=false
 TIMESTEP=2.0
 
@@ -35,7 +35,8 @@ best_track_run:
 	opts+=("--crs=${INPUT_MESH_CRS}");\
 	opts+=("--fort13=${INPUT_NODAL_ATTRIBUTES}");\
 	opts+=("--output-directory=$$(pwd)/outputs/$${STORM_NAME}");\
-	opts+=("--constituents=major");\
+	opts+=("--constituents=all");\
+	opts+=("--tidal-database=tpxo");\
 	opts+=("--skip-run");\
 	opts+=("--log-level=info");\
 	opts+=("--timestep=${TIMESTEP}"); \
@@ -43,8 +44,8 @@ best_track_run:
 	opts+=("--stations-file=../../../static/coops.txt"); \
 	opts+=("--elev-stat=6."); \
 	opts+=("--binaries-prefix=${PROJECT_PARENT}/.coastal_env/bin");\
-	opts+=("--run-name=$${STORM_NAME}_best_track_COASTAL_ACT_PRVDatum_mesh");\
-	opts+=("--gwce-solution-scheme=semi-implicit-legacy"); \
+	opts+=("--run-name=$${STORM_NAME}_best_track_COASTAL_ACT_Mesh120m");\
+	opts+=("--gwce-solution-scheme=explicit"); \
 	if [[ ${OVERWRITE} = true ]];\
 	then \
 		opts+=("--overwrite");\
@@ -69,12 +70,12 @@ best_track_run:
 	
 
 noaa-rdhpc-orion-coastal-act:
-	make -e SLURM_ACCOUNT=nosofs SLURM_NTASKS=800 PARTITION=orion WALLTIME=8 --no-print-directory
+	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=800 PARTITION=orion WALLTIME=8 --no-print-directory
 
 sbatch:
 	@set -eu;\
 	declare -a StormArray=("Ike2008" "Isabel2003" "Irma2017" "Sandy2012"  "Irene2011" \
-		"Michael2018" "Florence2018" "Harvey2017" "Maria2017" "Lane2018");\
+		"Michael2018" "Florence2018" "Harvey2017" "Maria2017");\
 	for STORM_NAME in "$${StormArray[@]}";\
 	do \
 		cd outputs/$${STORM_NAME};\
