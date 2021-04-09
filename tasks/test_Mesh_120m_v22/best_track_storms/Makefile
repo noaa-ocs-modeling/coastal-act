@@ -11,6 +11,8 @@ VERBOSE=true
 SPINUP_DAYS=5
 OVERWRITE=false
 TIMESTEP=2.0
+MAIL_TYPE=all
+MAIL_USER=jaime.calzada@noaa.gov
 
 default: mesh all_best_track_runs
 
@@ -55,13 +57,19 @@ best_track_run:
 		opts+=("--use-slurm");\
 		opts+=("--account=$${SLURM_ACCOUNT}");\
 		opts+=("--slurm-ntasks=$${SLURM_NTASKS}");\
-		opts+=("--partition=$${PARTITION}");\
 		opts+=("--walltime=$${WALLTIME}");\
-		opts+=("--mail-type=all");\
-		opts+=("--mail-user=jaime.calzada@noaa.gov");\
+		if [ ! -z $${MAIL_USER} ];\
+		then \
+			opts+=("--mail-type=${MAIL_TYPE}");\
+			opts+=("--mail-user=${MAIL_USER}");\
+		fi;\
 		opts+=("--module=intel");\
 		opts+=("--module=impi");\
 		opts+=("--module=netcdf");\
+		if [ ! -z ${PARTITION} ];\
+		then \
+			opts+=("--partition=${PARTITION}");\
+		fi;\
 	fi;\
 	. ${PROJECT_PARENT}/.miniconda3/etc/profile.d/conda.sh ;\
 	conda activate ${PROJECT_PARENT}/.coastal_env ;\
@@ -71,6 +79,9 @@ best_track_run:
 
 noaa-rdhpc-orion-coastal-act:
 	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=800 PARTITION=orion WALLTIME=8 --no-print-directory
+
+noaa-rdhpc-hera-coastal-act:
+	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=1000 WALLTIME=1 --no-print-directory
 
 sbatch:
 	@set -eu;\
