@@ -19,6 +19,7 @@ default: install
 clean:
 	rm -rf ${BUILD_DIR}
 	rm -rf ${MAKEFILE_PARENT}src/adcirc-cg
+	rm -rf ${MAKEFILE_PARENT}src/adcircpy
 	rm -rf ${MAKEFILE_PARENT}.miniconda3
 	rm -rf ${MAKEFILE_PARENT}static/cudem/${CUDEM_TILE_INDEX_FILENAME}
 	rm -rf ${MAKEFILE_PARENT}static/Mesh_120m/v22/fort.15
@@ -29,7 +30,7 @@ clean:
 	rm -rf ${MAKEFILE_PARENT}static/Mesh_120m/v22/fort.15
 
 
-install: coastal adcirc cudem mesh_120m_v22
+install: coastal adcircpy adcirc mesh_120m_v22_deploy mesh_prusvi_vdatum_deploy cudem adcirc
 
 
 adcirc: conda
@@ -130,7 +131,7 @@ cudem:
 		fi ;\
 	fi
 
-mesh_120m_v22:
+mesh_120m_v22_deploy:
 	@if [ ! -f ${MAKEFILE_PARENT}static/Mesh_120m/v22/Model_120m_Combinedv22_Storm.14 ];\
 	then \
 		cd ${MAKEFILE_PARENT}static;\
@@ -139,7 +140,25 @@ mesh_120m_v22:
 		rm -rf Mesh_120m_v22.tar.gz;\
 	fi
 
-develop: coastal
+mesh_prusvi_vdatum_deploy:
+	@if [ ! -f ${MAKEFILE_PARENT}static/Puerto\ Rico\ VDatum/fort.14 ];\
+	then \
+		cd ${MAKEFILE_PARENT}static;\
+		wget https://www.dropbox.com/s/rhsfetthytm23fu/PuertoRicoVDatum.tar.gz;\
+		tar xvf PuertoRicoVDatum.tar.gz;\
+		rm -rf PuertoRicoVDatum.tar.gz;\
+	fi
+
+
+adcircpy:
+	@. ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ;\
+	conda activate ${MAKEFILE_PARENT}.coastal_env ;\
+	cd ${MAKEFILE_PARENT}src;\
+	git clone https://github.com/JaimeCalzadaNOAA/adcircpy.git;\
+	cd adcircpy;\
+	python ./setup.py install
+
+coastal-develop: coastal
 	@. ${MAKEFILE_PARENT}.miniconda3/etc/profile.d/conda.sh ;\
 	conda activate ${MAKEFILE_PARENT}.coastal_env ;\
 	cd ${MAKEFILE_PARENT}src/coastal ;\
