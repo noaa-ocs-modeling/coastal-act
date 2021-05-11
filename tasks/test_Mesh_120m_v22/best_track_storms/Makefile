@@ -1,14 +1,16 @@
-PROJECT_PARENT:=$$(cd ../../.. && echo $$(pwd))
+MAKEFILE_PATH:=$(abspath $(lastword $(MAKEFILE_LIST)))
+MAKEFILE_PARENT:=$(dir $(MAKEFILE_PATH))ROJECT_PARENT:=$$(cd ../../.. && echo $$(pwd))
 PROJECT_STATIC:=${PROJECT_PARENT}/static
 SLURM_JOB_FILE=slurm.job
 SLURM_LOGFILE=slurm.log
 INPUT_MESH:=${PROJECT_STATIC}/Mesh_120m/v22/Model_120m_Combinedv22_Storm.14
 INPUT_MESH_CRS="EPSG:4326"
 INPUT_NODAL_ATTRIBUTES:=${PROJECT_STATIC}/Mesh_120m/v22/Model_120m_Combinedv22_Storm.13
+OUTPUT_DIRECTORY:=${MAKEFILE_PATH}/outputs
 
 SLURM_NTASKS:=$$(nproc)
 VERBOSE=true
-SPINUP_DAYS=5
+SPINUP_DAYS=15
 OVERWRITE=false
 TIMESTEP=2.0
 MAIL_TYPE=all
@@ -36,7 +38,7 @@ best_track_run:
 	opts+=("--spinup-days=${SPINUP_DAYS}");\
 	opts+=("--crs=${INPUT_MESH_CRS}");\
 	opts+=("--fort13=${INPUT_NODAL_ATTRIBUTES}");\
-	opts+=("--output-directory=$$(pwd)/outputs/$${STORM_NAME}");\
+	opts+=("--output-directory=${OUTPUT_DIRECTORY}/$${STORM_NAME}");\
 	opts+=("--constituents=all");\
 	opts+=("--tidal-database=tpxo");\
 	opts+=("--skip-run");\
@@ -78,10 +80,10 @@ best_track_run:
 	
 
 noaa-rdhpc-orion-coastal-act:
-	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=800 PARTITION=orion WALLTIME=8 --no-print-directory
+	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=800 PARTITION=orion WALLTIME=8 OUTPUT_DIRECTORY=${MAKEFILE_PARENT}/orion --no-print-directory
 
 noaa-rdhpc-hera-coastal-act:
-	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=1000 WALLTIME=1 --no-print-directory
+	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=1000 WALLTIME=1 OUTPUT_DIRECTORY=${MAKEFILE_PARENT}/hera --no-print-directory
 
 sbatch:
 	@set -eu;\
