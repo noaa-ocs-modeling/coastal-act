@@ -1,5 +1,6 @@
 MAKEFILE_PATH:=$(abspath $(lastword $(MAKEFILE_LIST)))
-MAKEFILE_PARENT:=$(dir $(MAKEFILE_PATH))ROJECT_PARENT:=$$(cd ../../.. && echo $$(pwd))
+MAKEFILE_PARENT:=$(dir $(MAKEFILE_PATH))
+PROJECT_PARENT:=$$(cd ../../.. && echo $$(pwd))
 PROJECT_STATIC:=${PROJECT_PARENT}/static
 SLURM_JOB_FILE=slurm.job
 SLURM_LOGFILE=slurm.log
