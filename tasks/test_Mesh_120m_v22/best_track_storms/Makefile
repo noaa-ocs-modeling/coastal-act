@@ -81,7 +81,7 @@ best_track_run:
 	
 
 noaa-rdhpc-orion-coastal-act:
-	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=800 PARTITION=orion WALLTIME=8 OUTPUT_DIRECTORY=${MAKEFILE_PARENT}orion --no-print-directory
+	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=1500 PARTITION=orion WALLTIME=8 OUTPUT_DIRECTORY=${MAKEFILE_PARENT}orion --no-print-directory
 
 noaa-rdhpc-hera-coastal-act:
 	make -e SLURM_ACCOUNT=coastal SLURM_NTASKS=1000 WALLTIME=1 OUTPUT_DIRECTORY=${MAKEFILE_PARENT}hera --no-print-directory
